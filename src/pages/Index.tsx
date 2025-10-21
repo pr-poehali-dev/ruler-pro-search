@@ -2,55 +2,43 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import Icon from '@/components/ui/icon';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface SearchResult {
   title: string;
   description: string;
-  category?: string;
-  rating: string;
-  updated?: string;
-  url?: string;
-  source?: string;
+  url: string;
+  source: string;
+  emoji: string;
+  color: string;
 }
 
 interface SearchResponse {
   query: string;
-  ai_results: SearchResult[];
-  wikipedia: SearchResult[];
+  ai_summary: string;
+  results: SearchResult[];
   total_results: number;
   search_time: string;
 }
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [aiSummary, setAiSummary] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchTime, setSearchTime] = useState('0.3с');
+  const [searchTime, setSearchTime] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
-  const popularSearches = [
-    { query: 'Аналитика данных', trend: '+45%', count: '12.5K' },
-    { query: 'Бизнес-решения', trend: '+32%', count: '8.3K' },
-    { query: 'Корпоративные системы', trend: '+28%', count: '7.1K' },
-    { query: 'Финансовый анализ', trend: '+18%', count: '5.9K' },
-    { query: 'Управление проектами', trend: '+15%', count: '4.7K' },
-  ];
-
-  const stats = [
-    { label: 'Общий объем поиска', value: '2.4M', icon: 'Database' },
-    { label: 'Активных пользователей', value: '125K', icon: 'Users' },
-    { label: 'Обработано запросов', value: '8.9M', icon: 'Activity' },
-    { label: 'Средняя скорость', value: '0.3с', icon: 'Zap' },
+  const trendingSearches = [
+    { query: '🌸 Милые котики', emoji: '🐱', gradient: 'from-pink-200 to-purple-200' },
+    { query: '✨ Рецепты десертов', emoji: '🍰', gradient: 'from-yellow-200 to-pink-200' },
+    { query: '🎨 Уроки рисования', emoji: '🖌️', gradient: 'from-blue-200 to-cyan-200' },
+    { query: '🌈 Красивые места', emoji: '🏞️', gradient: 'from-green-200 to-teal-200' },
+    { query: '💫 Мотивация', emoji: '⭐', gradient: 'from-purple-200 to-pink-200' },
+    { query: '🎵 Плейлисты', emoji: '🎶', gradient: 'from-indigo-200 to-purple-200' },
   ];
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -58,10 +46,9 @@ const Index = () => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setActiveTab('search');
 
     try {
-      const response = await fetch('https://functions.poehali.dev/22252d4a-eebc-41d0-af60-463ac947183e', {
+      const response = await fetch('https://functions.poehali.dev/2542bb8e-8c18-40d0-bff5-11ee82f707bd', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,66 +56,23 @@ const Index = () => {
         body: JSON.stringify({ query: searchQuery }),
       });
 
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-
-      const data: SearchResponse = await response.json();
-      const combined = [...data.ai_results, ...data.wikipedia];
-      setSearchResults(combined);
-      setSearchTime(data.search_time);
-    } catch (error) {
-      console.error('Search error:', error);
-      setSearchResults([
-        {
-          title: `${searchQuery} - Профессиональные решения`,
-          description: 'Комплексные решения для бизнеса с расширенной аналитикой.',
-          category: 'Бизнес',
-          rating: '4.9',
-          updated: 'Обновлено сегодня'
-        },
-        {
-          title: `${searchQuery} - Корпоративный уровень`,
-          description: 'Решения корпоративного класса для крупных организаций.',
-          category: 'Технологии',
-          rating: '4.8',
-          updated: 'Обновлено вчера'
-        }
-      ]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handlePopularSearch = async (query: string) => {
-    setSearchQuery(query);
-    setActiveTab('search');
-    setIsSearching(true);
-
-    try {
-      const response = await fetch('https://functions.poehali.dev/22252d4a-eebc-41d0-af60-463ac947183e', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
       if (!response.ok) throw new Error('Search failed');
 
       const data: SearchResponse = await response.json();
-      const combined = [...data.ai_results, ...data.wikipedia];
-      setSearchResults(combined);
+      setSearchResults(data.results);
+      setAiSummary(data.ai_summary);
       setSearchTime(data.search_time);
     } catch (error) {
       console.error('Search error:', error);
+      setAiSummary(`✨ Упс! Что-то пошло не так, но я все равно нашел кое-что для "${searchQuery}"!`);
       setSearchResults([
         {
-          title: `${query} - Профессиональные решения`,
-          description: 'Комплексные решения для бизнеса.',
-          category: 'Бизнес',
-          rating: '4.9',
-          updated: 'Обновлено сегодня'
+          title: `🌸 ${searchQuery}`,
+          description: 'Интересная информация ждет тебя по этой ссылке!',
+          url: `https://google.com/search?q=${searchQuery}`,
+          source: 'Web',
+          emoji: '💫',
+          color: 'pink'
         }
       ]);
     } finally {
@@ -136,206 +80,204 @@ const Index = () => {
     }
   };
 
+  const handleTrendingSearch = (query: string) => {
+    const cleanQuery = query.replace(/[🌸✨🎨🌈💫🎵]/g, '').trim();
+    setSearchQuery(cleanQuery);
+    const form = document.querySelector('form');
+    if (form) {
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+  };
+
+  const openPreview = (url: string) => {
+    setPreviewUrl(url);
+    setIsGeneratingPreview(true);
+    setTimeout(() => setIsGeneratingPreview(false), 1500);
+  };
+
+  const getColorClass = (color: string) => {
+    const colors: Record<string, string> = {
+      pink: 'border-pink-300 bg-pink-50',
+      purple: 'border-purple-300 bg-purple-50',
+      blue: 'border-blue-300 bg-blue-50',
+      green: 'border-green-300 bg-green-50',
+    };
+    return colors[color] || 'border-pink-300 bg-pink-50';
+  };
+
   return (
-    <div className="min-h-screen bg-background font-roboto">
-      <header className="border-b border-border bg-white sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 font-quicksand">
+      <header className="bg-white/80 backdrop-blur-md border-b-4 border-pink-200 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-center">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Icon name="Search" className="text-white" size={24} />
-              </div>
-              <h1 className="text-2xl font-bold font-inter text-foreground">RULER PRO</h1>
+              <div className="text-4xl animate-bounce">🍡</div>
+              <h1 className="text-3xl font-bold font-comfortaa bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
+                Dango Search
+              </h1>
+              <div className="text-2xl">✨</div>
             </div>
-            <nav className="hidden md:flex space-x-1">
-              <Button
-                variant={activeTab === 'home' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('home')}
-                className="font-medium"
-              >
-                <Icon name="Home" size={18} className="mr-2" />
-                Главная
-              </Button>
-              <Button
-                variant={activeTab === 'search' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('search')}
-                className="font-medium"
-              >
-                <Icon name="Search" size={18} className="mr-2" />
-                Поиск
-              </Button>
-              <Button
-                variant={activeTab === 'help' ? 'default' : 'ghost'}
-                onClick={() => setActiveTab('help')}
-                className="font-medium"
-              >
-                <Icon name="HelpCircle" size={18} className="mr-2" />
-                Помощь
-              </Button>
-            </nav>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsContent value="home" className="space-y-8 animate-fade-in">
-            <section className="text-center space-y-6 py-12">
-              <h2 className="text-5xl font-bold font-inter text-foreground">
-                Профессиональный поиск
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
+        {searchResults.length === 0 && !isSearching && (
+          <div className="text-center space-y-8 py-12 animate-fade-in">
+            <div className="space-y-4">
+              <h2 className="text-5xl font-bold font-comfortaa bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Найди все что хочешь! 🌸
               </h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Мощный инструмент для серьезных задач с расширенной аналитикой и статистикой
+              <p className="text-xl text-purple-600">
+                Умный поиск с милым ИИ-помощником
               </p>
-              
-              <form onSubmit={handleSearch} className="max-w-3xl mx-auto mt-8">
-                <div className="flex gap-3">
-                  <div className="relative flex-1">
-                    <Icon 
-                      name="Search" 
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" 
-                      size={20} 
-                    />
-                    <Input
-                      type="text"
-                      placeholder="Введите поисковый запрос..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-12 h-14 text-lg border-2 focus:border-primary"
-                    />
-                  </div>
-                  <Button type="submit" size="lg" className="h-14 px-8 font-medium" disabled={isSearching}>
-                    {isSearching ? 'Поиск...' : 'Найти'}
-                  </Button>
+            </div>
+
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
+              <div className="relative">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">
+                  🔍
                 </div>
-              </form>
-            </section>
-
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
-              {stats.map((stat, index) => (
-                <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-                      <p className="text-3xl font-bold font-inter text-foreground">{stat.value}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon name={stat.icon as any} className="text-primary" size={24} />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </section>
-
-            <section className="space-y-6 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold font-inter text-foreground">Популярные запросы</h3>
-                <Badge variant="secondary" className="px-3 py-1">
-                  <Icon name="TrendingUp" size={14} className="mr-1" />
-                  За неделю
-                </Badge>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {popularSearches.map((item, index) => (
-                  <Card 
-                    key={index} 
-                    className="p-5 hover:shadow-lg transition-all cursor-pointer hover:border-primary"
-                    onClick={() => handlePopularSearch(item.query)}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <h4 className="font-semibold text-foreground font-inter">{item.query}</h4>
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                        {item.trend}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Icon name="BarChart3" size={16} className="mr-2" />
-                      {item.count} запросов
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          </TabsContent>
-
-          <TabsContent value="search" className="space-y-6 animate-fade-in">
-            <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <Icon 
-                    name="Search" 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" 
-                    size={20} 
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Введите поисковый запрос..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 h-14 text-lg border-2 focus:border-primary"
-                  />
-                </div>
-                <Button type="submit" size="lg" className="h-14 px-8 font-medium">
-                  Найти
-                </Button>
+                <Input
+                  type="text"
+                  placeholder="Введи что ищешь..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-16 pr-4 h-16 text-lg border-4 border-pink-300 rounded-full focus:border-purple-400 bg-white/90 font-comfortaa shadow-xl"
+                />
               </div>
             </form>
 
-            {searchResults.length > 0 && (
-              <div className="max-w-3xl mx-auto space-y-4 mt-8">
-                <div className="flex items-center justify-between mb-6">
-                  <p className="text-sm text-muted-foreground">
-                    Найдено результатов: <span className="font-semibold text-foreground">{searchResults.length}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">{searchTime}</p>
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-purple-600 font-comfortaa">💫 Популярные запросы</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {trendingSearches.map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleTrendingSearch(item.query)}
+                    className={`p-4 rounded-2xl bg-gradient-to-br ${item.gradient} hover:scale-105 transition-transform shadow-lg border-2 border-white/50`}
+                  >
+                    <div className="text-2xl mb-2">{item.emoji}</div>
+                    <p className="text-sm font-semibold text-gray-700 font-comfortaa">
+                      {item.query}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-8 pt-8">
+              <div className="text-center">
+                <div className="text-3xl mb-2">🎀</div>
+                <p className="text-sm text-purple-600 font-semibold">Без рекламы</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl mb-2">🌟</div>
+                <p className="text-sm text-purple-600 font-semibold">Свой ИИ</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl mb-2">💝</div>
+                <p className="text-sm text-purple-600 font-semibold">Быстро</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(searchResults.length > 0 || isSearching) && (
+          <div className="space-y-6 animate-fade-in">
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
+              <div className="relative">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">
+                  🔍
                 </div>
+                <Input
+                  type="text"
+                  placeholder="Введи что ищешь..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-16 pr-4 h-14 text-lg border-4 border-pink-300 rounded-full focus:border-purple-400 bg-white/90 font-comfortaa shadow-lg"
+                />
+              </div>
+            </form>
+
+            {isSearching && (
+              <div className="text-center py-16">
+                <div className="inline-block text-6xl animate-bounce mb-4">🍡</div>
+                <h3 className="text-2xl font-bold text-purple-600 mb-2 font-comfortaa">
+                  Ищу для тебя...
+                </h3>
+                <p className="text-purple-400">
+                  ИИ анализирует запрос ✨
+                </p>
+              </div>
+            )}
+
+            {!isSearching && aiSummary && (
+              <Card className="p-6 bg-gradient-to-r from-pink-50 to-purple-50 border-4 border-pink-200 rounded-3xl shadow-xl">
+                <div className="flex items-start gap-4">
+                  <div className="text-4xl">🤖</div>
+                  <div>
+                    <p className="text-lg font-semibold text-purple-700 mb-2 font-comfortaa">
+                      Ответ ИИ-помощника
+                    </p>
+                    <p className="text-gray-700 leading-relaxed">
+                      {aiSummary}
+                    </p>
+                    {searchTime && (
+                      <p className="text-sm text-purple-400 mt-3">
+                        ⚡ Найдено за {searchTime}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {!isSearching && searchResults.length > 0 && (
+              <div className="space-y-4">
+                <p className="text-sm text-purple-600 font-semibold font-comfortaa">
+                  💫 Нашлось результатов: {searchResults.length}
+                </p>
                 
                 {searchResults.map((result, index) => (
-                  <Card key={index} className="p-6 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary">
+                  <Card 
+                    key={index} 
+                    className={`p-6 ${getColorClass(result.color)} border-4 rounded-3xl hover:shadow-2xl transition-all hover:scale-[1.02] cursor-pointer`}
+                  >
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Icon name={result.source === 'Wikipedia' ? 'Globe' : 'FileText'} className="text-primary" size={20} />
-                      </div>
+                      <div className="text-4xl">{result.emoji}</div>
                       <div className="flex-1">
-                        {result.url ? (
-                          <a href={result.url} target="_blank" rel="noopener noreferrer">
-                            <h3 className="text-lg font-semibold text-primary hover:underline mb-2 font-inter">
-                              {result.title}
-                            </h3>
-                          </a>
-                        ) : (
-                          <h3 className="text-lg font-semibold text-primary hover:underline mb-2 font-inter">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-xl font-bold text-gray-800 font-comfortaa">
                             {result.title}
                           </h3>
-                        )}
-                        <p className="text-sm text-muted-foreground mb-3">
+                          <Badge className="bg-white/80 text-purple-600 border-2 border-purple-200">
+                            {result.source}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-600 mb-4 leading-relaxed">
                           {result.description}
                         </p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          {result.source && (
-                            <>
-                              <Badge variant="outline" className="text-xs">
-                                {result.source}
-                              </Badge>
-                              <span>•</span>
-                            </>
-                          )}
-                          {result.category && (
-                            <>
-                              <span>{result.category}</span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span className="flex items-center">
-                            <Icon name="Star" size={14} className="mr-1" />
-                            {result.rating}
-                          </span>
-                          {result.updated && (
-                            <>
-                              <span>•</span>
-                              <span>{result.updated}</span>
-                            </>
-                          )}
+                        <div className="flex gap-2">
+                          <a 
+                            href={result.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-block"
+                          >
+                            <Button className="rounded-full bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white font-comfortaa shadow-lg">
+                              <Icon name="ExternalLink" size={16} className="mr-2" />
+                              Открыть сайт
+                            </Button>
+                          </a>
+                          <Button 
+                            onClick={() => openPreview(result.url)}
+                            variant="outline"
+                            className="rounded-full border-2 border-purple-300 hover:bg-purple-50 font-comfortaa"
+                          >
+                            <Icon name="Eye" size={16} className="mr-2" />
+                            Превью
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -343,156 +285,46 @@ const Index = () => {
                 ))}
               </div>
             )}
-
-            {searchResults.length === 0 && !isSearching && (
-              <div className="max-w-3xl mx-auto text-center py-16">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Icon name="Search" size={40} className="text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2 font-inter">
-                  Введите запрос для поиска
-                </h3>
-                <p className="text-muted-foreground">
-                  Используйте поисковую строку выше для начала работы
-                </p>
-              </div>
-            )}
-            
-            {isSearching && (
-              <div className="max-w-3xl mx-auto text-center py-16">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-                  <Icon name="Loader2" size={40} className="text-primary animate-spin" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2 font-inter">
-                  Поиск с помощью ИИ...
-                </h3>
-                <p className="text-muted-foreground">
-                  Анализируем запрос и собираем данные из Wikipedia
-                </p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="help" className="animate-fade-in">
-            <div className="max-w-4xl mx-auto space-y-8">
-              <div className="text-center space-y-4">
-                <h2 className="text-4xl font-bold font-inter text-foreground">Центр помощи</h2>
-                <p className="text-lg text-muted-foreground">
-                  Ответы на часто задаваемые вопросы и руководства по использованию
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon name="BookOpen" className="text-primary" size={28} />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2 font-inter">Документация</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Полное руководство пользователя
-                  </p>
-                </Card>
-
-                <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon name="MessageCircle" className="text-primary" size={28} />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2 font-inter">Поддержка</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Свяжитесь с нашей командой
-                  </p>
-                </Card>
-
-                <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Icon name="Video" className="text-primary" size={28} />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2 font-inter">Видеоуроки</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Обучающие материалы
-                  </p>
-                </Card>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold font-inter text-foreground mb-6">
-                  Часто задаваемые вопросы
-                </h3>
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="item-1">
-                    <AccordionTrigger className="text-left font-semibold">
-                      Как начать использовать Ruler PRO?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      Для начала работы просто введите ваш запрос в поисковую строку на главной странице. 
-                      Система автоматически проанализирует запрос и предоставит наиболее релевантные результаты 
-                      с расширенной аналитикой.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-2">
-                    <AccordionTrigger className="text-left font-semibold">
-                      Что означает статистика на главной странице?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      Статистика показывает ключевые метрики работы системы: общий объем данных в индексе, 
-                      количество активных пользователей, объем обработанных запросов и среднюю скорость поиска. 
-                      Эти показатели обновляются в реальном времени.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-3">
-                    <AccordionTrigger className="text-left font-semibold">
-                      Как работают популярные запросы?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      Раздел популярных запросов отображает наиболее актуальные темы за последнюю неделю. 
-                      Процент роста показывает изменение интереса к теме. Вы можете кликнуть на любой запрос 
-                      для быстрого перехода к результатам поиска.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-4">
-                    <AccordionTrigger className="text-left font-semibold">
-                      Какая средняя скорость обработки запроса?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      Ruler PRO обрабатывает запросы со средней скоростью 0.3 секунды. Это достигается благодаря 
-                      оптимизированным алгоритмам индексации и кэширования наиболее популярных запросов.
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="item-5">
-                    <AccordionTrigger className="text-left font-semibold">
-                      Как связаться с технической поддержкой?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      Вы можете связаться с нашей командой поддержки через раздел "Поддержка" выше. 
-                      Мы работаем круглосуточно и гарантируем ответ в течение 2 часов для корпоративных клиентов.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </main>
 
-      <footer className="border-t border-border mt-16 bg-white">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Icon name="Search" className="text-white" size={18} />
+      <Dialog open={previewUrl !== null} onOpenChange={() => setPreviewUrl(null)}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 bg-white rounded-3xl border-4 border-pink-300">
+          {isGeneratingPreview ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-6 bg-gradient-to-br from-pink-50 to-purple-50">
+              <div className="text-6xl animate-bounce">🎨</div>
+              <h3 className="text-2xl font-bold text-purple-600 font-comfortaa">
+                Генерирую интерфейс...
+              </h3>
+              <p className="text-purple-400">ИИ создает превью сайта ✨</p>
+              <div className="flex gap-2">
+                <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
-              <span className="font-bold font-inter text-foreground">RULER PRO</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 Ruler PRO. Профессиональный поисковик для серьезных задач.
-            </p>
+          ) : (
+            <iframe
+              src={previewUrl || ''}
+              className="w-full h-full rounded-3xl"
+              title="Website Preview"
+              sandbox="allow-scripts allow-same-origin"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <footer className="border-t-4 border-pink-200 mt-16 bg-white/80 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-8 text-center">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <span className="text-2xl">🍡</span>
+            <span className="font-bold font-comfortaa text-purple-600">Dango Search</span>
+            <span className="text-2xl">✨</span>
           </div>
+          <p className="text-sm text-purple-400">
+            Создано с любовью 💝 • Работает на собственном ИИ 🤖
+          </p>
         </div>
       </footer>
     </div>
