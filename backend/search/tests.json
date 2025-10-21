@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "name": "Search with valid query",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "query": "искусственный интеллект"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "query": "string",
+        "ai_results": "array",
+        "wikipedia": "array",
+        "total_results": "number"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Search with empty query",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "query": ""
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

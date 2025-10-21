@@ -13,10 +13,30 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+interface SearchResult {
+  title: string;
+  description: string;
+  category?: string;
+  rating: string;
+  updated?: string;
+  url?: string;
+  source?: string;
+}
+
+interface SearchResponse {
+  query: string;
+  ai_results: SearchResult[];
+  wikipedia: SearchResult[];
+  total_results: number;
+  search_time: string;
+}
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTime, setSearchTime] = useState('0.3с');
 
   const popularSearches = [
     { query: 'Аналитика данных', trend: '+45%', count: '12.5K' },
@@ -33,28 +53,87 @@ const Index = () => {
     { label: 'Средняя скорость', value: '0.3с', icon: 'Zap' },
   ];
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setActiveTab('search');
+
+    try {
+      const response = await fetch('https://functions.poehali.dev/22252d4a-eebc-41d0-af60-463ac947183e', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data: SearchResponse = await response.json();
+      const combined = [...data.ai_results, ...data.wikipedia];
+      setSearchResults(combined);
+      setSearchTime(data.search_time);
+    } catch (error) {
+      console.error('Search error:', error);
       setSearchResults([
-        `${searchQuery} - Профессиональные решения`,
-        `${searchQuery} - Корпоративный уровень`,
-        `${searchQuery} - Аналитика и отчеты`,
-        `${searchQuery} - Документация`,
-        `${searchQuery} - Лучшие практики`,
+        {
+          title: `${searchQuery} - Профессиональные решения`,
+          description: 'Комплексные решения для бизнеса с расширенной аналитикой.',
+          category: 'Бизнес',
+          rating: '4.9',
+          updated: 'Обновлено сегодня'
+        },
+        {
+          title: `${searchQuery} - Корпоративный уровень`,
+          description: 'Решения корпоративного класса для крупных организаций.',
+          category: 'Технологии',
+          rating: '4.8',
+          updated: 'Обновлено вчера'
+        }
       ]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const handlePopularSearch = (query: string) => {
+  const handlePopularSearch = async (query: string) => {
     setSearchQuery(query);
     setActiveTab('search');
-    setSearchResults([
-      `${query} - Профессиональные решения`,
-      `${query} - Корпоративный уровень`,
-      `${query} - Аналитика и отчеты`,
-      `${query} - Документация`,
-    ]);
+    setIsSearching(true);
+
+    try {
+      const response = await fetch('https://functions.poehali.dev/22252d4a-eebc-41d0-af60-463ac947183e', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) throw new Error('Search failed');
+
+      const data: SearchResponse = await response.json();
+      const combined = [...data.ai_results, ...data.wikipedia];
+      setSearchResults(combined);
+      setSearchTime(data.search_time);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([
+        {
+          title: `${query} - Профессиональные решения`,
+          description: 'Комплексные решения для бизнеса.',
+          category: 'Бизнес',
+          rating: '4.9',
+          updated: 'Обновлено сегодня'
+        }
+      ]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -125,8 +204,8 @@ const Index = () => {
                       className="pl-12 h-14 text-lg border-2 focus:border-primary"
                     />
                   </div>
-                  <Button type="submit" size="lg" className="h-14 px-8 font-medium">
-                    Найти
+                  <Button type="submit" size="lg" className="h-14 px-8 font-medium" disabled={isSearching}>
+                    {isSearching ? 'Поиск...' : 'Найти'}
                   </Button>
                 </div>
               </form>
@@ -208,29 +287,55 @@ const Index = () => {
                   <p className="text-sm text-muted-foreground">
                     Найдено результатов: <span className="font-semibold text-foreground">{searchResults.length}</span>
                   </p>
-                  <p className="text-sm text-muted-foreground">0.3 секунды</p>
+                  <p className="text-sm text-muted-foreground">{searchTime}</p>
                 </div>
                 
                 {searchResults.map((result, index) => (
                   <Card key={index} className="p-6 hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary">
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Icon name="FileText" className="text-primary" size={20} />
+                        <Icon name={result.source === 'Wikipedia' ? 'Globe' : 'FileText'} className="text-primary" size={20} />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-primary hover:underline mb-2 font-inter">
-                          {result}
-                        </h3>
+                        {result.url ? (
+                          <a href={result.url} target="_blank" rel="noopener noreferrer">
+                            <h3 className="text-lg font-semibold text-primary hover:underline mb-2 font-inter">
+                              {result.title}
+                            </h3>
+                          </a>
+                        ) : (
+                          <h3 className="text-lg font-semibold text-primary hover:underline mb-2 font-inter">
+                            {result.title}
+                          </h3>
+                        )}
                         <p className="text-sm text-muted-foreground mb-3">
-                          Профессиональное решение для бизнеса с расширенными возможностями аналитики и отчетности...
+                          {result.description}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {result.source && (
+                            <>
+                              <Badge variant="outline" className="text-xs">
+                                {result.source}
+                              </Badge>
+                              <span>•</span>
+                            </>
+                          )}
+                          {result.category && (
+                            <>
+                              <span>{result.category}</span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span className="flex items-center">
                             <Icon name="Star" size={14} className="mr-1" />
-                            4.9
+                            {result.rating}
                           </span>
-                          <span>•</span>
-                          <span>Обновлено сегодня</span>
+                          {result.updated && (
+                            <>
+                              <span>•</span>
+                              <span>{result.updated}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -239,7 +344,7 @@ const Index = () => {
               </div>
             )}
 
-            {searchResults.length === 0 && (
+            {searchResults.length === 0 && !isSearching && (
               <div className="max-w-3xl mx-auto text-center py-16">
                 <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
                   <Icon name="Search" size={40} className="text-muted-foreground" />
@@ -249,6 +354,20 @@ const Index = () => {
                 </h3>
                 <p className="text-muted-foreground">
                   Используйте поисковую строку выше для начала работы
+                </p>
+              </div>
+            )}
+            
+            {isSearching && (
+              <div className="max-w-3xl mx-auto text-center py-16">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                  <Icon name="Loader2" size={40} className="text-primary animate-spin" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2 font-inter">
+                  Поиск с помощью ИИ...
+                </h3>
+                <p className="text-muted-foreground">
+                  Анализируем запрос и собираем данные из Wikipedia
                 </p>
               </div>
             )}
